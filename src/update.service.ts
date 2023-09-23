@@ -6,13 +6,13 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { existsSync } from 'fs';
 import { stat, readdir, readFile } from 'fs/promises';
-import path from 'path';
+import { join } from 'path';
 import { UpdateType } from './app.dto';
-import crypto from 'crypto';
+import { createHash } from 'crypto';
 import { IMetaDataJSON } from './types/MetadataJSON';
 import { convertSHA256HashToUUID, getBase64URLEncoding } from './utils';
-import mime from 'mime';
-import FormData from 'form-data';
+import * as mime from 'mime';
+import * as FormData from 'form-data';
 import { Response } from 'express';
 type GetAssetMetadataArg =
   | {
@@ -41,11 +41,7 @@ export class UpdateService {
     if (!updateDirectory) {
       throw new BadRequestException('Update directory not set');
     }
-    const updateDirectoryForRuntime = path.join(
-      updateDirectory,
-      runtimeVersion,
-    );
-
+    const updateDirectoryForRuntime = join(updateDirectory, runtimeVersion);
     const directoryExists = existsSync(updateDirectoryForRuntime);
     if (!directoryExists) {
       throw new NotFoundException("Runtime version  doesn't exist");
@@ -54,7 +50,7 @@ export class UpdateService {
     const filesInDirectory = await readdir(updateDirectoryForRuntime);
     const directoryMapping = await Promise.all(
       filesInDirectory.map(async (file) => {
-        const fileStat = await stat(path.join(updateDirectoryForRuntime, file));
+        const fileStat = await stat(join(updateDirectoryForRuntime, file));
         return {
           fileName: file,
           isDirectory: fileStat.isDirectory(),
@@ -74,7 +70,7 @@ export class UpdateService {
   async getUpdateType(runtimeVersion: string, updateVersion: string) {
     const updateDirectory = this.configService.get<string>('UPDATE_DIR');
 
-    const versionDirectory = path.join(
+    const versionDirectory = join(
       updateDirectory,
       runtimeVersion,
       updateVersion,
@@ -117,7 +113,7 @@ export class UpdateService {
     if (currentUpdateId === id && protocolVersion === 1) {
       throw new NotFoundException('No update available');
     }
-
+    console.log(updateVersion);
     const expoConfig = await this.getExpoConfig(runtimeVersion, updateVersion);
 
     const platformSpecificMetadata = metadataJson.fileMetadata[platform];
@@ -186,13 +182,13 @@ export class UpdateService {
   async getUpdateMetadata(runtimeVersion: string, updateVersion: string) {
     const updateDirectory = this.configService.get<string>('UPDATE_DIR');
 
-    const versionDirectory = path.join(
+    const versionDirectory = join(
       updateDirectory,
       runtimeVersion,
       updateVersion,
     );
 
-    const metadataPath = path.join(versionDirectory, 'metadata.json');
+    const metadataPath = join(versionDirectory, 'metadata.json');
 
     const updateMetadataBuffer = await readFile(metadataPath, null);
     const metadataJson = JSON.parse(
@@ -203,26 +199,28 @@ export class UpdateService {
     return {
       metadataJson,
       createdAt: new Date(metadataStat.birthtime).toISOString(),
-      id: crypto
-        .createHash('sha256')
-        .update(updateMetadataBuffer)
-        .digest('hex'),
+      id: createHash('sha256').update(updateMetadataBuffer).digest('hex'),
     };
   }
 
   async getExpoConfig(runtimeVersion: string, updateVersion: string) {
     try {
       const updateDirectory = this.configService.get<string>('UPDATE_DIR');
-      const versionDirectory = path.join(
+      const versionDirectory = join(
         updateDirectory,
         runtimeVersion,
         updateVersion,
       );
-      const expoConfigPath = path.join(versionDirectory, 'expoConfig.json');
+
+      console.log({ updateDirectory, runtimeVersion, updateVersion });
+
+      console.log({ versionDirectory });
+      const expoConfigPath = join(versionDirectory, 'expoConfig.json');
       const expoConfigBuffer = await readFile(expoConfigPath, null);
       const expoConfigJson = JSON.parse(expoConfigBuffer.toString('utf-8'));
       return expoConfigJson;
     } catch (error) {
+      console.log(error);
       throw new NotFoundException('No expo config json found');
     }
   }
@@ -236,17 +234,17 @@ export class UpdateService {
     updateVersion,
   }: GetAssetMetadataArg) {
     const updateDirectory = this.configService.get<string>('UPDATE_DIR');
-    const versionDirectory = path.join(
+    const versionDirectory = join(
       updateDirectory,
       runtimeVersion,
       updateVersion,
     );
-    const assetFilePath = path.join(versionDirectory, filePath);
+    const assetFilePath = join(versionDirectory, filePath);
     const asset = await readFile(assetFilePath, null);
     const assetHash = getBase64URLEncoding(
-      crypto.createHash('sha256').update(asset).digest('base64'),
+      createHash('sha256').update(asset).digest('base64'),
     );
-    const key = crypto.createHash('md5').update(asset).digest('hex');
+    const key = createHash('md5').update(asset).digest('hex');
 
     const keyExtensionSuffix = isLaunchAsset ? 'bundle' : ext;
 
@@ -255,7 +253,10 @@ export class UpdateService {
       : mime.getType(ext);
 
     const hostName = this.configService.get('HOSTNAME');
-    const assetUrl = `${hostName}/assets?asset=${assetFilePath}&runtimeVersion=${runtimeVersion}&platform=${platform}`;
+    const assetUrl = `${hostName}/assets?asset=${assetFilePath.replace(
+      updateDirectory + '/',
+      '',
+    )}&runtimeVersion=${runtimeVersion}&platform=${platform}`;
 
     return {
       hash: assetHash,

@@ -14,7 +14,7 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get('manifest')
-  getMAnifest(
+  getManifest(
     // Protocol version
     @Headers('expo-protocol-version') expoProtocolVersion: string,
 
@@ -80,5 +80,31 @@ export class AppController {
   }
 
   @Get('assets')
-  getManifestAssets() {}
+  getManifestAssets(
+    @Query('platform') platform: string,
+    @Query('runtimeVersion') runtimeVersion: string,
+    @Query('asset') assetName: string,
+    @Res() res: Response,
+  ) {
+    if (!assetName || typeof assetName !== 'string') {
+      throw new BadRequestException('No asset name provided.');
+    }
+
+    if (platform !== 'ios' && platform !== 'android') {
+      throw new BadRequestException(
+        'No platform provided. Expected "ios" or "android".',
+      );
+    }
+
+    if (!runtimeVersion || typeof runtimeVersion !== 'string') {
+      throw new BadRequestException('No runtimeVersion provided.');
+    }
+
+    return this.appService.getAsset({
+      platform: platform as 'ios' | 'android',
+      runtimeVersion,
+      assetName,
+      res,
+    });
+  }
 }
