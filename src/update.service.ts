@@ -64,7 +64,7 @@ export class UpdateService {
       return Number(b.fileName) - Number(a.fileName);
     });
 
-    return sortedDirectories[0].fileName;
+    return sortedDirectories[0]?.fileName;
   }
 
   async getUpdateType(runtimeVersion: string, updateVersion: string) {

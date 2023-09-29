@@ -38,6 +38,11 @@ export class AppService {
   }: ManifestRequest) {
     const updateVersion =
       await this.updateService.getUpdateVersion(runtimeVersion);
+
+    if (!updateVersion) {
+      throw new NotFoundException('Update not found');
+    }
+
     const updateType = await this.updateService.getUpdateType(
       runtimeVersion,
       updateVersion,
@@ -59,6 +64,11 @@ export class AppService {
     const updateDirectory = this.configService.get<string>('UPDATE_DIR');
     const updateVersion =
       await this.updateService.getUpdateVersion(runtimeVersion);
+
+    if (!updateVersion) {
+      throw new NotFoundException('Update not found');
+    }
+
     const { metadataJson } = await this.updateService.getUpdateMetadata(
       runtimeVersion,
       updateVersion,
