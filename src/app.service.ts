@@ -48,6 +48,7 @@ export class AppService {
       updateVersion,
     );
 
+    console.log('updateType', updateType);
     if (updateType == UpdateType.ROLLBACK) {
     }
     return this.updateService.getUpdateManifest(

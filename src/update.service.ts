@@ -113,7 +113,7 @@ export class UpdateService {
     if (currentUpdateId === id && protocolVersion === 1) {
       throw new NotFoundException('No update available');
     }
-    console.log(updateVersion);
+    console.log({ updateVersion });
     const expoConfig = await this.getExpoConfig(runtimeVersion, updateVersion);
 
     const platformSpecificMetadata = metadataJson.fileMetadata[platform];
@@ -168,6 +168,7 @@ export class UpdateService {
         contentType: 'application/json',
       },
     );
+    console.log(manifest);
     res.statusCode = 200;
     res.setHeader('expo-protocol-version', protocolVersion);
     res.setHeader('expo-sfv-version', 0);
@@ -212,15 +213,11 @@ export class UpdateService {
         updateVersion,
       );
 
-      console.log({ updateDirectory, runtimeVersion, updateVersion });
-
-      console.log({ versionDirectory });
       const expoConfigPath = join(versionDirectory, 'expoConfig.json');
       const expoConfigBuffer = await readFile(expoConfigPath, null);
       const expoConfigJson = JSON.parse(expoConfigBuffer.toString('utf-8'));
       return expoConfigJson;
     } catch (error) {
-      console.log(error);
       throw new NotFoundException('No expo config json found');
     }
   }

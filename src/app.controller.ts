@@ -13,8 +13,8 @@ import { Response } from 'express';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get('manifest')
-  getManifest(
+  @Get('seller/production/manifest')
+  async getManifest(
     // Protocol version
     @Headers('expo-protocol-version') expoProtocolVersion: string,
 
@@ -70,13 +70,16 @@ export class AppController {
       throw new BadRequestException('Invalid expo-runtime-version header');
     }
 
-    return this.appService.getManifest({
+    const res2 = await this.appService.getManifest({
       protocolVersion,
       platform: requestedPlatform as 'ios' | 'android',
       runtimeVersion: requestedRuntimeVersion,
       currentUpdateId,
       res,
     });
+
+    console.log(res2);
+    return res2;
   }
 
   @Get('assets')

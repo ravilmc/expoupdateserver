@@ -17,6 +17,7 @@ import { ActiveUserData } from '../interfaces/active-user-data.interface';
 import { RefreshTokenDto } from './dto/refresh-token-dto/RefreshTokenDto';
 import { randomUUID } from 'crypto';
 import { RefreshTokenIdsStorage } from './refresh-token-ids.storage/refresh-token-ids.storage';
+import { FieldError } from 'src/validation/fielderror.exception';
 
 @Injectable()
 export class AuthenticationService {
@@ -30,14 +31,32 @@ export class AuthenticationService {
     private readonly refreshTokenIdsStorage: RefreshTokenIdsStorage,
   ) {}
 
+  async me(activeUserData: ActiveUserData) {
+    const user = await this.userRepository.findOneBy({
+      id: activeUserData.sub,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const {  email, id ,firstName,lastName} = user;
+
+    return {
+      email,
+      id,
+      firstName,
+      lastName
+    };
+  }
+
   async signUp(signUpDto: SignUpDto) {
     try {
       const user = new User();
       user.email = signUpDto.email;
+      user.firstName = signUpDto.firstName;
+      user.lastName = signUpDto.lastName;
       user.password = await this.hashingService.hash(signUpDto.password);
 
       await this.userRepository.save(user);
     } catch (error) {
+      console.log(error);
       const pgUniqueViolationCode = '23505';
       if (error.code === pgUniqueViolationCode) {
         throw new ConflictException('User already exists');
@@ -51,7 +70,13 @@ export class AuthenticationService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new FieldError(
+        "email", 'Invalid credentials',
+      );
+    }
+
+    if(!user.verified){
+      throw new FieldError("email",'Email not verified');
     }
 
     const isEqual = await this.hashingService.compare(
@@ -60,7 +85,7 @@ export class AuthenticationService {
     );
 
     if (!isEqual) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new FieldError("password" , 'Password is incorrect');
     }
 
     return await this.generateTokens(user);
